@@ -1,0 +1,35 @@
+#include <iostream>
+
+int main() {
+    int rows = 3;
+    int cols = 4;
+
+    // Declare a dynamic 2D array using pointers
+    int** myArray = new int*[rows];
+    for (int i = 0; i < rows; i++) {
+        myArray[i] = new int[cols];
+    }
+
+    // Initialize elements
+    for (int i = 0; i < rows; i++) {
+        for (int j = 0; j < cols; j++) {
+            myArray[i][j] = i * cols + j + 1;
+        }
+    }
+
+    // Access and print elements
+    for (int i = 0; i < rows; i++) {
+        for (int j = 0; j < cols; j++) {
+            std::cout << myArray[i][j] << " ";
+        }
+        std::cout << std::endl;
+    }
+
+    // Deallocate memory
+    for (int i = 0; i < rows; i++) {
+        delete[] myArray[i];
+    }
+    delete[] myArray;
+
+    return 0;
+}
