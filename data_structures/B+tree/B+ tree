@@ -1,0 +1,173 @@
+#include <iostream>
+#include <vector>
+
+class BPlusTree {
+private:
+    // B+ tree node structure
+    struct Node {
+        bool isLeaf;
+        std::vector<int> keys;
+        std::vector<int> values;
+        Node* parent;
+        std::vector<Node*> children;
+    };
+
+    Node* root;
+    int order; // Order of the B+ tree
+
+public:
+    BPlusTree(int order) : root(nullptr), order(order) {}
+
+    // Insert a key-value pair into the B+ tree
+    void insert(int key, int value) {
+        if (root == nullptr) {
+            root = new Node;
+            root->isLeaf = true;
+            root->keys.push_back(key);
+            root->values.push_back(value);
+        } else {
+            // Find the leaf node where the key should be inserted
+            Node* leaf = findLeaf(root, key);
+
+            // Insert the key-value pair into the leaf node
+            insertIntoLeaf(leaf, key, value);
+
+            // If the leaf node is full, split it
+            if (leaf->keys.size() == order) {
+                splitLeaf(leaf);
+            }
+        }
+    }
+
+    // Search for a key and return its associated value
+    int search(int key) {
+        if (root == nullptr) {
+            std::cout << "Tree is empty." << std::endl;
+            return -1;
+        }
+
+        Node* leaf = findLeaf(root, key);
+
+        // Search for the key in the leaf node
+        for (int i = 0; i < leaf->keys.size(); i++) {
+            if (leaf->keys[i] == key) {
+                return leaf->values[i];
+            }
+        }
+
+        std::cout << "Key not found." << std::endl;
+        return -1;
+    }
+
+private:
+    // Helper function to find the leaf node where a key should be inserted
+    Node* findLeaf(Node* node, int key) {
+        if (node->isLeaf) {
+            return node;
+        }
+
+        for (int i = 0; i < node->keys.size(); i++) {
+            if (key < node->keys[i]) {
+                return findLeaf(node->children[i], key);
+            }
+        }
+
+        return findLeaf(node->children.back(), key);
+    }
+
+    // Helper function to insert a key-value pair into a leaf node
+    void insertIntoLeaf(Node* leaf, int key, int value) {
+        int i = 0;
+        while (i < leaf->keys.size() && key > leaf->keys[i]) {
+            i++;
+        }
+
+        leaf->keys.insert(leaf->keys.begin() + i, key);
+        leaf->values.insert(leaf->values.begin() + i, value);
+    }
+
+    // Helper function to split a full leaf node
+    void splitLeaf(Node* leaf) {
+        Node* newLeaf = new Node;
+        newLeaf->isLeaf = true;
+
+        // Move half of the keys and values to the new leaf
+        int splitIndex = leaf->keys.size() / 2;
+        newLeaf->keys.assign(leaf->keys.begin() + splitIndex, leaf->keys.end());
+        newLeaf->values.assign(leaf->values.begin() + splitIndex, leaf->values.end());
+        leaf->keys.erase(leaf->keys.begin() + splitIndex, leaf->keys.end());
+        leaf->values.erase(leaf->values.begin() + splitIndex, leaf->values.end());
+
+        if (leaf->parent == nullptr) {
+            // Create a new root and set the leaf nodes as children
+            Node* newRoot = new Node;
+            newRoot->keys.push_back(newLeaf->keys[0]);
+            newRoot->children.push_back(leaf);
+            newRoot->children.push_back(newLeaf);
+            leaf->parent = newRoot;
+            newLeaf->parent = newRoot;
+            root = newRoot;
+        } else {
+            // Update the parent node with the new leaf node
+            insertIntoParent(leaf->parent, newLeaf->keys[0], newLeaf);
+        }
+    }
+
+    // Helper function to insert a key and a new child into a parent node
+    void insertIntoParent(Node* parent, int key, Node* newChild) {
+        int i = 0;
+        while (i < parent->keys.size() && key > parent->keys[i]) {
+            i++;
+        }
+
+        parent->keys.insert(parent->keys.begin() + i, key);
+        parent->children.insert(parent->children.begin() + i + 1, newChild);
+        newChild->parent = parent;
+
+        // If the parent is full, split it recursively
+        if (parent->keys.size() == order) {
+            Node* newParent = new Node;
+            newParent->isLeaf = false;
+
+            int splitIndex = parent->keys.size() / 2;
+            int promoteKey = parent->keys[splitIndex];
+
+            newParent->keys.push_back(promoteKey);
+            newParent->children.assign(parent->children.begin() + splitIndex + 1, parent->children.end());
+            parent->children.erase(parent->children.begin() + splitIndex + 1, parent->children.end());
+
+            // Update the parent of the new child and the parent of the parent
+            for (Node* child : newParent->children) {
+                child->parent = newParent;
+            }
+
+            // Recursively insert into the grandparent
+            if (parent->parent == nullptr) {
+                Node* newRoot = new Node;
+                newRoot->keys.push_back(promoteKey);
+                newRoot->children.push_back(parent);
+                newRoot->children.push_back(newParent);
+                parent->parent = newRoot;
+                newParent->parent = newRoot;
+                root = newRoot;
+            } else {
+                insertIntoParent(parent->parent, promoteKey, newParent);
+            }
+        }
+    }
+};
+
+int main() {
+    BPlusTree bptree(3); // Create a B+ tree with order 3
+
+    bptree.insert(1, 10);
+    bptree.insert(2, 20);
+    bptree.insert(3, 30);
+
+    std::cout << "Value for key 1: " << bptree.search(1) << std::endl;
+    std::cout << "Value for key 2: " << bptree.search(2) << std::endl;
+    std::cout << "Value for key 3: " << bptree.search(3) << std::endl;
+    std::cout << "Value for key 4: " << bptree.search(4) << std::endl;
+
+    return 0;
+}
